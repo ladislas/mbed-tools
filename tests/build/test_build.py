@@ -2,8 +2,9 @@
 # Copyright (C) 2020 Arm Mbed. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
-import subprocess
+import pathlib
 
+from tempfile import TemporaryDirectory
 from unittest import mock
 
 import pytest
@@ -18,12 +19,6 @@ def cmake_wrapper():
         yield cmake
 
 
-@pytest.fixture
-def subprocess_run():
-    with mock.patch("mbed_tools.build.build.subprocess.run", autospec=True) as subproc:
-        yield subproc
-
-
 class TestBuildProject:
     def test_invokes_cmake_with_correct_args(self, cmake_wrapper):
         build_project(build_dir="cmake_build", target="install")
@@ -35,11 +30,12 @@ class TestBuildProject:
 
         cmake_wrapper.assert_called_once_with("--build", "cmake_build")
 
-    def test_raises_build_error_if_cmake_invocation_fails(self, subprocess_run):
-        subprocess_run.side_effect = subprocess.CalledProcessError(1, "")
+    def test_raises_build_error_if_build_dir_doesnt_exist(self):
+        with TemporaryDirectory() as tmp_dir:
+            nonexistent_build_dir = pathlib.Path(tmp_dir, "cmake_build")
 
-        with pytest.raises(MbedBuildError):
-            build_project(build_dir="cmake_build")
+            with pytest.raises(MbedBuildError):
+                build_project(nonexistent_build_dir)
 
 
 class TestConfigureProject:
